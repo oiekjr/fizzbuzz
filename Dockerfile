@@ -1,22 +1,23 @@
-FROM php:8.3-cli
+FROM composer:2 AS composer
+
+FROM php:8.2-cli
+
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        git \
-        unzip \
-        libzip-dev \
-        sqlite3 \
-        libsqlite3-dev \
-    && docker-php-ext-install pdo_mysql pdo_sqlite \
-    && apt-get clean \
+    && apt-get install -y --no-install-recommends git unzip libzip-dev zlib1g-dev \
+    && docker-php-ext-install zip \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2.8 /usr/bin/composer /usr/local/bin/composer
-
-WORKDIR /var/www/html
+COPY --from=composer /usr/bin/composer /usr/bin/composer
 
 COPY . .
 
-EXPOSE 8000
+RUN composer install --no-dev --prefer-dist --no-interaction --no-progress \
+    && chmod +x docker/entrypoint.sh \
+    && php artisan package:discover --ansi
 
-CMD ["sh", "-c", "composer install && php artisan serve --host=0.0.0.0 --port=8000"]
+ENTRYPOINT ["./docker/entrypoint.sh"]
+CMD []
